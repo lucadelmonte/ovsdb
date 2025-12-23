@@ -48,7 +48,7 @@ type OvsDaemon struct {
 
 // GetSystemID TODO
 func (cli *OvnClient) GetSystemID() error {
-	systemID, err := getSystemID(cli.Database.Vswitch.File.SystemID.Path)
+	systemID, err := getSystemID(cli.Database.Vswitch.Client, cli.Database.Vswitch.Name, cli.Database.Vswitch.File.SystemID.Path)
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func (cli *OvnClient) GetSystemID() error {
 
 // GetSystemID TODO
 func (cli *OvsClient) GetSystemID() error {
-	systemID, err := getSystemID(cli.Database.Vswitch.File.SystemID.Path)
+	systemID, err := getSystemID(cli.Database.Vswitch.Client, cli.Database.Vswitch.Name, cli.Database.Vswitch.File.SystemID.Path)
 	if err != nil {
 		return err
 	}
@@ -66,11 +66,40 @@ func (cli *OvsClient) GetSystemID() error {
 	return nil
 }
 
-func getSystemID(filepath string) (string, error) {
+func getSystemID(client *Client, dbName string, filepath string) (string, error) {
 	var systemID string
+	var dbErr error
+
+	// First, try to query database if client is provided
+	if client != nil && dbName != "" {
+		query := fmt.Sprintf("SELECT external_ids FROM %s", dbName)
+		result, err := client.Transact(dbName, query)
+		if err == nil && len(result.Rows) > 0 {
+			col := "external_ids"
+			rowData, dataType, err := result.Rows[0].GetColumnValue(col, result.Columns)
+			if err == nil && dataType == "map[string]string" {
+				externalIDs := rowData.(map[string]string)
+				if dbSystemID, exists := externalIDs["system-id"]; exists && dbSystemID != "" {
+					systemID = dbSystemID
+					if len(systemID) > 253 {
+						return systemID, fmt.Errorf("system-id is greater than what the exporter currently allows: %d vs 253", len(systemID))
+					}
+					return systemID, nil
+				}
+			}
+		} else if err != nil {
+			dbErr = err
+		}
+	}
+
+	// Fallback to reading from file
 	file, err := os.Open(filepath)
 	if err != nil {
-		return systemID, err
+		// If we also had a database error, return both
+		if dbErr != nil {
+			return "", fmt.Errorf("failed to get system-id from database (%s) and file (%s)", dbErr, err)
+		}
+		return "", err
 	}
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
@@ -79,7 +108,10 @@ func getSystemID(filepath string) (string, error) {
 		break
 	}
 	if err := scanner.Err(); err != nil {
-		return systemID, err
+		if dbErr != nil {
+			return "", fmt.Errorf("failed to get system-id from database (%s) and file (%s)", dbErr, err)
+		}
+		return "", err
 	}
 	// vswitch.ovsschema does not limit system IDs to a particular length and a common
 	// ID to use is UUID (36 bytes). However, some tools use FQDNs for system-ids which
@@ -244,11 +276,12 @@ func parseSystemInfo(systemID string, result Result) (map[string]string, error) 
 // GetSystemInfo returns a hash containing system information, e.g. `system_id`
 // associated with the Open_vSwitch database.
 func (cli *OvnClient) GetSystemInfo() error {
-	systemID, err := getSystemID(cli.Database.Vswitch.File.SystemID.Path)
+	// Get system-id (tries database first, falls back to file)
+	systemID, err := getSystemID(cli.Database.Vswitch.Client, cli.Database.Vswitch.Name, cli.Database.Vswitch.File.SystemID.Path)
 	if err != nil {
 		return err
 	}
-	cli.System.ID = systemID
+
 	query := fmt.Sprintf("SELECT ovs_version, db_version, system_type, system_version, external_ids FROM %s", cli.Database.Vswitch.Name)
 	result, err := cli.Database.Vswitch.Client.Transact(cli.Database.Vswitch.Name, query)
 	if err != nil {
@@ -278,11 +311,12 @@ func (cli *OvnClient) GetSystemInfo() error {
 // GetSystemInfo returns a hash containing system information, e.g. `system_id`
 // associated with the Open_vSwitch database.
 func (cli *OvsClient) GetSystemInfo() error {
-	systemID, err := getSystemID(cli.Database.Vswitch.File.SystemID.Path)
+	// Get system-id (tries database first, falls back to file)
+	systemID, err := getSystemID(cli.Database.Vswitch.Client, cli.Database.Vswitch.Name, cli.Database.Vswitch.File.SystemID.Path)
 	if err != nil {
 		return err
 	}
-	cli.System.ID = systemID
+
 	query := fmt.Sprintf("SELECT ovs_version, db_version, system_type, system_version, external_ids FROM %s", cli.Database.Vswitch.Name)
 	result, err := cli.Database.Vswitch.Client.Transact(cli.Database.Vswitch.Name, query)
 	if err != nil {
