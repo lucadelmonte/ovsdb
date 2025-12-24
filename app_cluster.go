@@ -124,7 +124,7 @@ func (cli *OvnClient) GetAppClusteringInfo(db string) (ClusterState, error) {
 			}
 			continue
 		} else if strings.HasPrefix(line, "Server ID:") {
-			s := strings.TrimLeft(line, "Server ID:")
+			s := strings.TrimPrefix(line, "Server ID:")
 			s = strings.Join(strings.Fields(strings.TrimSpace(s)), " ")
 			arr := strings.Split(s, " ")
 			if len(arr) != 2 {
@@ -137,12 +137,12 @@ func (cli *OvnClient) GetAppClusteringInfo(db string) (ClusterState, error) {
 			}
 			continue
 		} else if strings.HasPrefix(line, "Address:") {
-			s := strings.TrimLeft(line, "Address:")
+			s := strings.TrimPrefix(line, "Address:")
 			s = strings.Join(strings.Fields(s), " ")
 			server.Address = s
 			continue
 		} else if strings.HasPrefix(line, "Status:") {
-			s := strings.TrimLeft(line, "Status:")
+			s := strings.TrimPrefix(line, "Status:")
 			s = strings.Join(strings.Fields(s), " ")
 			switch s {
 			case "cluster member":
@@ -307,8 +307,6 @@ func (cli *OvnClient) GetAppClusteringInfo(db string) (ClusterState, error) {
 				peer.Address = peerAddress
 			}
 			continue
-		} else {
-			// do nothing
 		}
 	}
 	//spew.Dump(server)

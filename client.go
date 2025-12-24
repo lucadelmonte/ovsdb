@@ -59,7 +59,7 @@ func NewClient(s string, t int) (Client, error) {
 	cli.errQueue = make(chan error, 1)
 	go ovsdbMessenger(cli.Endpoint, cli.Timeout, cli.txQueue, cli.rxQueue, cli.errQueue)
 	err := <-cli.errQueue
-	return cli, err
+	return cli, err //nolint:govet
 }
 
 // Close TODO
@@ -115,7 +115,6 @@ func (cli *Client) query(method string, param interface{}) (*Response, error) {
 			retryAttempts--
 		}
 	}
-	return nil, fmt.Errorf("%s", errMsgs)
 }
 
 func (cli *Client) getColumns(db, table string) (map[string]string, error) {
@@ -318,5 +317,4 @@ func ovsdbMessenger(s string, t int, rxQueue <-chan Request, txQueue chan<- Resp
 		}
 		txQueue <- respMsg
 	}
-	return
 }

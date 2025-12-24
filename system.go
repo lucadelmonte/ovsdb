@@ -250,7 +250,7 @@ func parseSystemInfo(systemID string, result Result) (map[string]string, error) 
 				return systemInfo, fmt.Errorf("data type '%s' for '%s' column is unexpected in this context", dataType, col)
 			}
 		}
-		break
+		break //nolint:staticcheck
 	}
 	if dbSystemID, exists := systemInfo["system-id"]; exists {
 		if dbSystemID != systemID {
