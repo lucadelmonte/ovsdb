@@ -102,7 +102,7 @@ func (cli *OvnClient) GetAppClusteringInfo(db string) (ClusterState, error) {
 		}
 		if strings.HasPrefix(line, "Name:") {
 			parserOn = true
-			s := strings.TrimLeft(line, "Name: ")
+			s := strings.TrimPrefix(line, "Name: ")
 			s = strings.Join(strings.Fields(s), " ")
 			server.Database = s
 			continue
@@ -111,7 +111,7 @@ func (cli *OvnClient) GetAppClusteringInfo(db string) (ClusterState, error) {
 			continue
 		}
 		if strings.HasPrefix(line, "Cluster ID:") {
-			s := strings.TrimLeft(line, "Cluster ID:")
+			s := strings.TrimPrefix(line, "Cluster ID:")
 			s = strings.Join(strings.Fields(strings.TrimSpace(s)), " ")
 			arr := strings.Split(s, " ")
 			if len(arr) != 2 {
@@ -152,7 +152,7 @@ func (cli *OvnClient) GetAppClusteringInfo(db string) (ClusterState, error) {
 			}
 			continue
 		} else if strings.HasPrefix(line, "Role:") {
-			s := strings.TrimLeft(line, "Role:")
+			s := strings.TrimPrefix(line, "Role:")
 			s = strings.Join(strings.Fields(s), " ")
 			switch s {
 			case "leader":
@@ -205,19 +205,19 @@ func (cli *OvnClient) GetAppClusteringInfo(db string) (ClusterState, error) {
 				server.Log.High = i
 			}
 		} else if strings.HasPrefix(line, "Entries not yet committed:") {
-			s := strings.TrimLeft(line, "Entries not yet committed:")
+			s := strings.TrimPrefix(line, "Entries not yet committed:")
 			s = strings.Join(strings.Fields(s), " ")
 			if i, err := strconv.ParseUint(s, 10, 64); err == nil {
 				server.NotCommittedEntries = i
 			}
 		} else if strings.HasPrefix(line, "Entries not yet applied:") {
-			s := strings.TrimLeft(line, "Entries not yet applied:")
+			s := strings.TrimPrefix(line, "Entries not yet applied:")
 			s = strings.Join(strings.Fields(s), " ")
 			if i, err := strconv.ParseUint(s, 10, 64); err == nil {
 				server.NotAppliedEntries = i
 			}
 		} else if strings.HasPrefix(line, "Connections:") {
-			s := strings.TrimLeft(line, "Connections:")
+			s := strings.TrimPrefix(line, "Connections:")
 			s = strings.Join(strings.Fields(s), " ")
 			conns := strings.Split(strings.Join(strings.Fields(s), " "), " ")
 			for _, entry := range conns {
@@ -274,7 +274,7 @@ func (cli *OvnClient) GetAppClusteringInfo(db string) (ClusterState, error) {
 						peerAddress = strings.TrimRight(e, ")")
 					}
 				} else if strings.HasPrefix(e, "next_index=") {
-					nextIndex := strings.TrimLeft(e, "next_index=")
+					nextIndex := strings.TrimPrefix(e, "next_index=")
 					if i, err := strconv.ParseUint(nextIndex, 10, 64); err == nil {
 						if isSelf {
 							server.NextIndex = i
@@ -283,7 +283,7 @@ func (cli *OvnClient) GetAppClusteringInfo(db string) (ClusterState, error) {
 						}
 					}
 				} else if strings.HasPrefix(e, "match_index=") {
-					matchIndex := strings.TrimLeft(e, "match_index=")
+					matchIndex := strings.TrimPrefix(e, "match_index=")
 					if i, err := strconv.ParseUint(matchIndex, 10, 64); err == nil {
 						if isSelf {
 							server.MatchIndex = i
@@ -291,21 +291,21 @@ func (cli *OvnClient) GetAppClusteringInfo(db string) (ClusterState, error) {
 							peerMatchIndex = i
 						}
 					}
-			}
-			if !isSelf {
-				if _, exists := server.Peers[peerID]; !exists {
-					peer := ClusterPeer{}
-					peer.ID = peerID
-					server.Peers[peerID] = &peer
 				}
-				peer := server.Peers[peerID]
-				peer.NextIndex = peerNextIndex
-				peer.MatchIndex = peerMatchIndex
-				peer.Address = peerAddress
+				if !isSelf {
+					if _, exists := server.Peers[peerID]; !exists {
+						peer := ClusterPeer{}
+						peer.ID = peerID
+						server.Peers[peerID] = &peer
+					}
+					peer := server.Peers[peerID]
+					peer.NextIndex = peerNextIndex
+					peer.MatchIndex = peerMatchIndex
+					peer.Address = peerAddress
+				}
+				continue
 			}
-			continue
 		}
-	}
 	}
 	//spew.Dump(server)
 	return server, nil
