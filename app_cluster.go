@@ -304,6 +304,8 @@ func (cli *OvnClient) GetAppClusteringInfo(db string) (ClusterState, error) {
 				peer.Address = peerAddress
 			}
 			continue
+		}
+	}
 	}
 	//spew.Dump(server)
 	return server, nil
