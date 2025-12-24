@@ -19,6 +19,7 @@ package ovsdb
 import (
 	"encoding/json"
 	"fmt"
+
 	//"github.com/davecgh/go-spew/spew"
 	"io"
 	//"math/rand"
@@ -82,7 +83,7 @@ func (cli *Client) query(method string, param interface{}) (*Response, error) {
 		Params: param,
 	}
 	for {
-		if cli.closed == false {
+		if !cli.closed {
 			cli.txQueue <- req
 			select {
 			case err := <-cli.errQueue:
@@ -266,20 +267,18 @@ func ovsdbMessenger(s string, t int, rxQueue <-chan Request, txQueue chan<- Resp
 	errQueue <- nil
 	cli := newClientCodec(conn)
 	for {
-		select {
-		case reqMsg := <-rxQueue:
-			var req rpc.Request
-			if reqMsg.Method == "shutdown" {
-				cli.Close()
-				errQueue <- nil
-				return
-			}
-			req.ServiceMethod = reqMsg.Method
-			req.Seq = counter
-			if err := cli.WriteRequest(&req, reqMsg.Params); err != nil {
-				errQueue <- err
-				return
-			}
+		reqMsg := <-rxQueue
+		var req rpc.Request
+		if reqMsg.Method == "shutdown" {
+			cli.Close()
+			errQueue <- nil
+			return
+		}
+		req.ServiceMethod = reqMsg.Method
+		req.Seq = counter
+		if err := cli.WriteRequest(&req, reqMsg.Params); err != nil {
+			errQueue <- err
+			return
 		}
 		if err := cli.ReadResponseHeader(&resp); err != nil {
 			errQueue <- err

@@ -56,7 +56,7 @@ func newOvsdbEncoder(w io.Writer) *ovsdbEncoder {
 // An encodeState encodes JSON into a bytes.Buffer.
 type encodeState struct {
 	bytes.Buffer // accumulated output
-	scratch      [64]byte
+	scratch      [64]byte //nolint:unused
 }
 
 var encodeStatePool sync.Pool

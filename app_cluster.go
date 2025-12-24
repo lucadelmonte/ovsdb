@@ -270,13 +270,13 @@ func (cli *OvnClient) GetAppClusteringInfo(db string) (ClusterState, error) {
 			var peerMatchIndex uint64
 			for _, e := range arr {
 				if strings.HasPrefix(e, "tcp:") || strings.HasPrefix(e, "ssl:") {
-					if isSelf != true {
+					if !isSelf {
 						peerAddress = strings.TrimRight(e, ")")
 					}
 				} else if strings.HasPrefix(e, "next_index=") {
 					nextIndex := strings.TrimLeft(e, "next_index=")
 					if i, err := strconv.ParseUint(nextIndex, 10, 64); err == nil {
-						if isSelf == true {
+						if isSelf {
 							server.NextIndex = i
 						} else {
 							peerNextIndex = i
@@ -285,7 +285,7 @@ func (cli *OvnClient) GetAppClusteringInfo(db string) (ClusterState, error) {
 				} else if strings.HasPrefix(e, "match_index=") {
 					matchIndex := strings.TrimLeft(e, "match_index=")
 					if i, err := strconv.ParseUint(matchIndex, 10, 64); err == nil {
-						if isSelf == true {
+						if isSelf {
 							server.MatchIndex = i
 						} else {
 							peerMatchIndex = i
@@ -295,7 +295,7 @@ func (cli *OvnClient) GetAppClusteringInfo(db string) (ClusterState, error) {
 					// do nothing
 				}
 			}
-			if isSelf != true {
+			if !isSelf {
 				if _, exists := server.Peers[peerID]; !exists {
 					peer := ClusterPeer{}
 					peer.ID = peerID
