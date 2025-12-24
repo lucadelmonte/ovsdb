@@ -166,13 +166,13 @@ func (cli *OvnClient) GetAppClusteringInfo(db string) (ClusterState, error) {
 			}
 			continue
 		} else if strings.HasPrefix(line, "Term:") {
-			s := strings.TrimLeft(line, "Term:")
+			s := strings.TrimPrefix(line, "Term:")
 			s = strings.Join(strings.Fields(s), " ")
 			if term, err := strconv.ParseUint(s, 10, 64); err == nil {
 				server.Term = term
 			}
 		} else if strings.HasPrefix(line, "Leader:") {
-			s := strings.TrimLeft(line, "Leader:")
+			s := strings.TrimPrefix(line, "Leader:")
 			s = strings.Join(strings.Fields(s), " ")
 			if s == "self" {
 				server.IsLeaderSelf = 1
@@ -180,7 +180,7 @@ func (cli *OvnClient) GetAppClusteringInfo(db string) (ClusterState, error) {
 				server.IsLeaderSelf = 0
 			}
 		} else if strings.HasPrefix(line, "Vote:") {
-			s := strings.TrimLeft(line, "Vote:")
+			s := strings.TrimPrefix(line, "Vote:")
 			s = strings.Join(strings.Fields(s), " ")
 			if s == "self" {
 				server.IsVotedSelf = 1
@@ -188,7 +188,7 @@ func (cli *OvnClient) GetAppClusteringInfo(db string) (ClusterState, error) {
 				server.IsVotedSelf = 0
 			}
 		} else if strings.HasPrefix(line, "Log:") {
-			s := strings.TrimLeft(line, "Log:")
+			s := strings.TrimPrefix(line, "Log:")
 			s = strings.Join(strings.Fields(s), " ")
 			s = strings.TrimLeft(s, "[")
 			s = strings.TrimRight(s, "]")
@@ -291,9 +291,6 @@ func (cli *OvnClient) GetAppClusteringInfo(db string) (ClusterState, error) {
 							peerMatchIndex = i
 						}
 					}
-				} else {
-					// do nothing
-				}
 			}
 			if !isSelf {
 				if _, exists := server.Peers[peerID]; !exists {
