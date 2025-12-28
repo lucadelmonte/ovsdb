@@ -124,15 +124,13 @@ func getSystemID(client *Client, dbName string, filepath string) (string, error)
 }
 
 func getVersionViaAppctl(sock string, timeout int) (string, error) {
-	var app Client
-	var err error
 	cmd := "version"
-	app, err = NewClient(sock, timeout)
+	app, err := NewClient(sock, timeout)
 	if err != nil {
 		return "", fmt.Errorf("failed to connect to socket %s: %s", sock, err)
 	}
-	defer app.Close()
 	r, err := app.query(cmd, nil)
+	app.Close()
 	if err != nil {
 		return "", fmt.Errorf("the '%s' command failed: %s", cmd, err)
 	}
@@ -296,6 +294,14 @@ func (cli *OvnClient) GetSystemInfo() error {
 	}
 	// Get schema for db_version
 	schema, _ := cli.Database.Vswitch.Client.GetSchema(cli.Database.Vswitch.Name)
+	// Ensure PID is read and socket path is updated before using control socket
+	if cli.Database.Vswitch.Process.ID == 0 {
+		p, pidErr := getProcessInfoFromFile(cli.Database.Vswitch.File.Pid.Path)
+		if pidErr == nil {
+			cli.Database.Vswitch.Process = p
+		}
+	}
+	cli.updateRefs()
 	// Query version information via ovs-appctl for fields not in DB (OVS 3.x+)
 	populateVersionFromAppctl(systemInfo, cli.Database.Vswitch.Socket.Control, cli.Timeout, &schema)
 	cli.System.ID = systemInfo["system-id"]
@@ -331,6 +337,14 @@ func (cli *OvsClient) GetSystemInfo() error {
 	}
 	// Get schema for db_version
 	schema, _ := cli.Database.Vswitch.Client.GetSchema(cli.Database.Vswitch.Name)
+	// Ensure PID is read and socket path is updated before using control socket
+	if cli.Database.Vswitch.Process.ID == 0 {
+		p, pidErr := getProcessInfoFromFile(cli.Database.Vswitch.File.Pid.Path)
+		if pidErr == nil {
+			cli.Database.Vswitch.Process = p
+		}
+	}
+	cli.updateRefs()
 	// Query version information via ovs-appctl for fields not in DB (OVS 3.x+)
 	populateVersionFromAppctl(systemInfo, cli.Database.Vswitch.Socket.Control, cli.Timeout, &schema)
 	cli.System.ID = systemInfo["system-id"]
