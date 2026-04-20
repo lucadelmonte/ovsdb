@@ -46,13 +46,14 @@ type OvsDaemon struct {
 	}
 }
 
-// GetSystemID TODO
+// GetSystemID sets cli.System.ID to the local hostname. OVN-side identity
+// is derived from hostname on each node; no OVS database access is required.
 func (cli *OvnClient) GetSystemID() error {
-	systemID, err := getSystemID(cli.Database.Vswitch.Client, cli.Database.Vswitch.Name, cli.Database.Vswitch.File.SystemID.Path)
+	hostname, err := os.Hostname()
 	if err != nil {
 		return err
 	}
-	cli.System.ID = systemID
+	cli.System.ID = hostname
 	return nil
 }
 
@@ -271,46 +272,41 @@ func parseSystemInfo(systemID string, result Result) (map[string]string, error) 
 	return systemInfo, nil
 }
 
-// GetSystemInfo returns a hash containing system information, e.g. `system_id`
-// associated with the Open_vSwitch database.
+// GetSystemInfo populates cli.System and NB/SB schema versions from local
+// sources (hostname, /etc/os-release) and OVN Northbound/Southbound schema
+// lookups. No OVS database access is required.
 func (cli *OvnClient) GetSystemInfo() error {
-	// Get system-id (tries database first, falls back to file)
-	systemID, err := getSystemID(cli.Database.Vswitch.Client, cli.Database.Vswitch.Name, cli.Database.Vswitch.File.SystemID.Path)
+	hostname, err := os.Hostname()
 	if err != nil {
 		return err
 	}
+	cli.System.ID = hostname
+	cli.System.Hostname = hostname
 
-	query := fmt.Sprintf("SELECT ovs_version, db_version, system_type, system_version, external_ids FROM %s", cli.Database.Vswitch.Name)
-	result, err := cli.Database.Vswitch.Client.Transact(cli.Database.Vswitch.Name, query)
-	if err != nil {
-		return fmt.Errorf("The '%s' query failed: %s", query, err)
+	systemType, systemVersion := getSystemInfoFromOS()
+	if systemType == "" {
+		systemType = "unknown"
 	}
-	if len(result.Rows) == 0 {
-		return fmt.Errorf("The '%s' query did not return any rows", query)
+	if systemVersion == "" {
+		systemVersion = "unknown"
 	}
-	systemInfo, err := parseSystemInfo(systemID, result)
-	if err != nil {
-		return fmt.Errorf("The '%s' query returned results but erred: %s", query, err)
-	}
-	// Get schema for db_version
-	schema, _ := cli.Database.Vswitch.Client.GetSchema(cli.Database.Vswitch.Name)
-	// Ensure PID is read and socket path is updated before using control socket
-	if cli.Database.Vswitch.Process.ID == 0 {
-		p, pidErr := getProcessInfoFromFile(cli.Database.Vswitch.File.Pid.Path)
-		if pidErr == nil {
-			cli.Database.Vswitch.Process = p
+	cli.System.Type = systemType
+	cli.System.Version = systemVersion
+
+	if cli.Database.Northbound.Client != nil {
+		if schema, schemaErr := cli.Database.Northbound.Client.GetSchema(cli.Database.Northbound.Name); schemaErr == nil {
+			cli.Database.Northbound.Schema.Version = schema.Version
+		} else {
+			cli.Database.Northbound.Schema.Version = "unknown"
 		}
 	}
-	cli.updateRefs()
-	// Query version information via ovs-appctl for fields not in DB (OVS 3.x+)
-	populateVersionFromAppctl(systemInfo, cli.Database.Vswitch.Socket.Control, cli.Timeout, &schema)
-	cli.System.ID = systemInfo["system-id"]
-	cli.System.RunDir = systemInfo["rundir"]
-	cli.System.Hostname = systemInfo["hostname"]
-	cli.System.Type = systemInfo["system_type"]
-	cli.System.Version = systemInfo["system_version"]
-	cli.Database.Vswitch.Version = systemInfo["ovs_version"]
-	cli.Database.Vswitch.Schema.Version = systemInfo["db_version"]
+	if cli.Database.Southbound.Client != nil {
+		if schema, schemaErr := cli.Database.Southbound.Client.GetSchema(cli.Database.Southbound.Name); schemaErr == nil {
+			cli.Database.Southbound.Schema.Version = schema.Version
+		} else {
+			cli.Database.Southbound.Schema.Version = "unknown"
+		}
+	}
 	return nil
 }
 
