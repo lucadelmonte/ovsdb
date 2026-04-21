@@ -147,8 +147,9 @@ func (cli *OvnClient) Close() {
 	}
 }
 
+// updateRefs is retained for compatibility with callers that invoke it, but
+// is now a no-op for OvnClient: component control sockets are configured
+// explicitly via CLI flags and must not be re-derived from PID data that
+// this client no longer tracks.
 func (cli *OvnClient) updateRefs() {
-	cli.Database.Vswitch.Socket.Control = fmt.Sprintf("unix:%s/ovsdb-server.%d.ctl", cli.System.RunDir, cli.Database.Vswitch.Process.ID)
-	cli.Service.Vswitchd.Socket.Control = fmt.Sprintf("unix:%s/ovs-vswitchd.%d.ctl", cli.System.RunDir, cli.Service.Vswitchd.Process.ID)
-	cli.Service.Northd.Socket.Control = fmt.Sprintf("unix:%s/ovn-northd.%d.ctl", cli.System.RunDir, cli.Service.Northd.Process.ID)
 }
