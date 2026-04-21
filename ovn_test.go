@@ -18,27 +18,38 @@ import (
 	"testing"
 )
 
+// TestOvnClientUpdateRefs verifies that updateRefs() is a no-op for
+// OvnClient. The old implementation derived control socket paths from
+// System.RunDir and each daemon's tracked PID, but OvnClient no longer
+// tracks PIDs and component control sockets are configured explicitly
+// via CLI flags.
 func TestOvnClientUpdateRefs(t *testing.T) {
 	client := NewOvnClient()
 
+	// Capture the control socket values as populated by NewOvnClient.
+	origVswitchCtrl := client.Database.Vswitch.Socket.Control
+	origVswitchdCtrl := client.Service.Vswitchd.Socket.Control
+	origNorthdCtrl := client.Service.Northd.Socket.Control
+
+	// Mutate PID/RunDir in a way that the old implementation would have
+	// reflected in the socket paths.
 	client.Database.Vswitch.Process.ID = 200
 	client.Service.Vswitchd.Process.ID = 201
 	client.Service.Northd.Process.ID = 202
 	client.System.RunDir = "/tmp/random-path"
 
 	client.updateRefs()
-	expectedDatabaseCtrl := "unix:/tmp/random-path/ovsdb-server.200.ctl"
-	if client.Database.Vswitch.Socket.Control != expectedDatabaseCtrl {
-		t.Errorf("UpdateRefs fail. Expected: %s Ctrl: %s", expectedDatabaseCtrl, client.Database.Vswitch.Socket.Control)
-	}
 
-	expectedVswitchdCtrl := "unix:/tmp/random-path/ovs-vswitchd.201.ctl"
-	if client.Service.Vswitchd.Socket.Control != expectedVswitchdCtrl {
-		t.Errorf("UpdateRefs fail. Expected: %s Ctrl: %s", expectedVswitchdCtrl, client.Service.Vswitchd.Socket.Control)
+	if client.Database.Vswitch.Socket.Control != origVswitchCtrl {
+		t.Errorf("updateRefs must not modify Database.Vswitch.Socket.Control. Before: %s After: %s",
+			origVswitchCtrl, client.Database.Vswitch.Socket.Control)
 	}
-
-	expectedNorthdCtrl := "unix:/tmp/random-path/ovn-northd.202.ctl"
-	if client.Service.Northd.Socket.Control != expectedNorthdCtrl {
-		t.Errorf("UpdateRefs fail. Expected: %s Ctrl: %s", expectedNorthdCtrl, client.Service.Vswitchd.Socket.Control)
+	if client.Service.Vswitchd.Socket.Control != origVswitchdCtrl {
+		t.Errorf("updateRefs must not modify Service.Vswitchd.Socket.Control. Before: %s After: %s",
+			origVswitchdCtrl, client.Service.Vswitchd.Socket.Control)
+	}
+	if client.Service.Northd.Socket.Control != origNorthdCtrl {
+		t.Errorf("updateRefs must not modify Service.Northd.Socket.Control. Before: %s After: %s",
+			origNorthdCtrl, client.Service.Northd.Socket.Control)
 	}
 }

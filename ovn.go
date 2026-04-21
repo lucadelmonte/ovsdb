@@ -112,14 +112,6 @@ func NewOvnClient() *OvnClient {
 // Connect initiates connections to OVN databases.
 func (cli *OvnClient) Connect() error {
 	errMsgs := []string{}
-	if cli.Database.Vswitch.Client == nil {
-		ovs, err := NewClient(cli.Database.Vswitch.Socket.Remote, cli.Timeout)
-		cli.Database.Vswitch.Client = &ovs
-		if err != nil {
-			cli.Database.Vswitch.Client.closed = true
-			errMsgs = append(errMsgs, fmt.Sprintf("failed connecting to %s via %s: %s", cli.Database.Vswitch.Name, cli.Database.Vswitch.Socket.Remote, err))
-		}
-	}
 	if cli.Database.Northbound.Client == nil {
 		nb, err := NewClient(cli.Database.Northbound.Socket.Remote, cli.Timeout)
 		cli.Database.Northbound.Client = &nb
@@ -155,8 +147,9 @@ func (cli *OvnClient) Close() {
 	}
 }
 
+// updateRefs is retained for compatibility with callers that invoke it, but
+// is now a no-op for OvnClient: component control sockets are configured
+// explicitly via CLI flags and must not be re-derived from PID data that
+// this client no longer tracks.
 func (cli *OvnClient) updateRefs() {
-	cli.Database.Vswitch.Socket.Control = fmt.Sprintf("unix:%s/ovsdb-server.%d.ctl", cli.System.RunDir, cli.Database.Vswitch.Process.ID)
-	cli.Service.Vswitchd.Socket.Control = fmt.Sprintf("unix:%s/ovs-vswitchd.%d.ctl", cli.System.RunDir, cli.Service.Vswitchd.Process.ID)
-	cli.Service.Northd.Socket.Control = fmt.Sprintf("unix:%s/ovn-northd.%d.ctl", cli.System.RunDir, cli.Service.Northd.Process.ID)
 }
