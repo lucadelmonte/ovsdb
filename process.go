@@ -104,52 +104,27 @@ func getProcessInfoFromFile(f string) (OvsProcess, error) {
 	return info, nil
 }
 
-// GetProcessInfo returns information about a service or database process.
+// GetProcessInfo probes the liveness of an OVN component by querying its
+// control socket. It returns a zero-value OvsProcess on success (the value
+// is intentionally empty since PID/user/group read from the host /proc
+// namespace is meaningless when the daemon runs inside a container).
+// Callers should treat a nil error as "component is reachable".
 func (cli *OvnClient) GetProcessInfo(name string) (OvsProcess, error) {
-	var p OvsProcess
-	var err error
+	var ctl string
 	switch name {
-	case "ovsdb-server":
-		p, err = getProcessInfoFromFile(cli.Database.Vswitch.File.Pid.Path)
 	case "ovsdb-server-southbound":
-		p, err = getProcessInfoFromFile(cli.Database.Southbound.File.Pid.Path)
-	case "ovsdb-server-southbound-monitoring":
-		p, err = getProcessInfo(cli.Database.Southbound.Process.Parent.ID)
+		ctl = cli.Database.Southbound.Socket.Control
 	case "ovsdb-server-northbound":
-		p, err = getProcessInfoFromFile(cli.Database.Northbound.File.Pid.Path)
-	case "ovsdb-server-northbound-monitoring":
-		p, err = getProcessInfo(cli.Database.Northbound.Process.Parent.ID)
+		ctl = cli.Database.Northbound.Socket.Control
 	case "ovn-northd":
-		p, err = getProcessInfoFromFile(cli.Service.Northd.File.Pid.Path)
-	case "ovn-northd-monitoring":
-		p, err = getProcessInfo(cli.Service.Northd.Process.Parent.ID)
-	case "ovs-vswitchd":
-		p, err = getProcessInfoFromFile(cli.Service.Vswitchd.File.Pid.Path)
+		ctl = cli.Service.Northd.Socket.Control
 	default:
 		return OvsProcess{}, fmt.Errorf("The '%s' component is unsupported", name)
 	}
-	if err != nil {
-		return OvsProcess{}, err
+	if _, err := getVersionViaAppctl(ctl, cli.Timeout); err != nil {
+		return OvsProcess{}, fmt.Errorf("'%s' is not reachable via %s: %s", name, ctl, err)
 	}
-	switch name {
-	case "ovsdb-server":
-		cli.Database.Vswitch.Process = p
-	case "ovsdb-server-southbound":
-		cli.Database.Southbound.Process = p
-	case "ovsdb-server-southbound-monitoring":
-		cli.Database.Southbound.Process.Parent.ID = p.ID
-	case "ovsdb-server-northbound":
-		cli.Database.Northbound.Process = p
-	case "ovsdb-server-northbound-monitoring":
-		cli.Database.Northbound.Process.Parent.ID = p.ID
-	case "ovn-northd":
-		cli.Service.Northd.Process = p
-	case "ovn-northd-monitoring":
-		cli.Service.Northd.Process.Parent.ID = p.ID
-	case "ovs-vswitchd":
-		cli.Service.Vswitchd.Process = p
-	}
-	return p, nil
+	return OvsProcess{}, nil
 }
 
 // GetProcessInfo returns information about a service or database process.
