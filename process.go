@@ -127,26 +127,56 @@ func (cli *OvnClient) GetProcessInfo(name string) (OvsProcess, error) {
 	return OvsProcess{}, nil
 }
 
-// GetProcessInfo returns information about a service or database process.
+// GetProcessInfo probes the liveness of an OVS component by querying its
+// control socket. The PID read from the .pid file is used only to resolve
+// the PID-suffixed socket filename, not to stat /proc on the host, so the
+// probe works when the daemon runs in a different PID namespace.
 func (cli *OvsClient) GetProcessInfo(name string) (OvsProcess, error) {
-	var p OvsProcess
-	var err error
+	var pidPath string
 	switch name {
 	case "ovsdb-server":
-		p, err = getProcessInfoFromFile(cli.Database.Vswitch.File.Pid.Path)
+		pidPath = cli.Database.Vswitch.File.Pid.Path
 	case "ovs-vswitchd":
-		p, err = getProcessInfoFromFile(cli.Service.Vswitchd.File.Pid.Path)
+		pidPath = cli.Service.Vswitchd.File.Pid.Path
 	default:
 		return OvsProcess{}, fmt.Errorf("The '%s' component is unsupported", name)
 	}
+
+	pid, err := readPidFromFile(pidPath)
 	if err != nil {
 		return OvsProcess{}, err
 	}
+
 	switch name {
 	case "ovsdb-server":
-		cli.Database.Vswitch.Process = p
+		cli.Database.Vswitch.Process.ID = pid
 	case "ovs-vswitchd":
-		cli.Service.Vswitchd.Process = p
+		cli.Service.Vswitchd.Process.ID = pid
 	}
-	return p, nil
+	cli.updateRefs()
+
+	var ctl string
+	switch name {
+	case "ovsdb-server":
+		ctl = cli.Database.Vswitch.Socket.Control
+	case "ovs-vswitchd":
+		ctl = cli.Service.Vswitchd.Socket.Control
+	}
+
+	if _, err := getVersionViaAppctl(ctl, cli.Timeout); err != nil {
+		return OvsProcess{}, fmt.Errorf("'%s' is not reachable via %s: %s", name, ctl, err)
+	}
+	return OvsProcess{ID: pid}, nil
+}
+
+func readPidFromFile(path string) (int, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return 0, err
+	}
+	pid, err := strconv.Atoi(strings.TrimSuffix(string(data), "\n"))
+	if err != nil {
+		return 0, err
+	}
+	return pid, nil
 }
