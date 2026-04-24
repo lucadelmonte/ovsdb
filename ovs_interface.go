@@ -178,6 +178,24 @@ func (cli *OvsClient) GetDbInterfaces() ([]*OvsInterface, error) {
 			intf.Options = make(map[string]string)
 		}
 
+		if r, dt, err := row.GetColumnValue("bfd", result.Columns); err == nil {
+			if dt == "map[string]string" {
+				intf.Bfd = r.(map[string]string)
+			}
+		}
+		if intf.Bfd == nil {
+			intf.Bfd = make(map[string]string)
+		}
+
+		if r, dt, err := row.GetColumnValue("bfd_status", result.Columns); err == nil {
+			if dt == "map[string]string" {
+				intf.BfdStatus = r.(map[string]string)
+			}
+		}
+		if intf.BfdStatus == nil {
+			intf.BfdStatus = make(map[string]string)
+		}
+
 		if r, dt, err := row.GetColumnValue("type", result.Columns); err == nil {
 			if dt == "string" {
 				intf.Type = r.(string)
