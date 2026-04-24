@@ -31,8 +31,8 @@ type OvsInterface struct {
 	BridgeName           string  // reference to datapath from ovs-appctl dpif/show
 	DatapathName         string  // reference to datapath from ovs-appctl dpif/show
 	AdminState           string
-	Bfd                  map[string]string // TODO: unverified data type
-	BfdStatus            map[string]string // TODO: unverified data type
+	Bfd                  map[string]string
+	BfdStatus            map[string]string
 	CfmFault             []string          // TODO: unverified data type
 	CfmFaultStatus       []string          // TODO: unverified data type
 	CfmFlapCount         []string          // TODO: unverified data type
