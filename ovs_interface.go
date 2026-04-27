@@ -31,8 +31,8 @@ type OvsInterface struct {
 	BridgeName           string  // reference to datapath from ovs-appctl dpif/show
 	DatapathName         string  // reference to datapath from ovs-appctl dpif/show
 	AdminState           string
-	Bfd                  map[string]string // TODO: unverified data type
-	BfdStatus            map[string]string // TODO: unverified data type
+	Bfd                  map[string]string
+	BfdStatus            map[string]string
 	CfmFault             []string          // TODO: unverified data type
 	CfmFaultStatus       []string          // TODO: unverified data type
 	CfmFlapCount         []string          // TODO: unverified data type
@@ -176,6 +176,24 @@ func (cli *OvsClient) GetDbInterfaces() ([]*OvsInterface, error) {
 			}
 		} else {
 			intf.Options = make(map[string]string)
+		}
+
+		if r, dt, err := row.GetColumnValue("bfd", result.Columns); err == nil {
+			if dt == "map[string]string" {
+				intf.Bfd = r.(map[string]string)
+			}
+		}
+		if intf.Bfd == nil {
+			intf.Bfd = make(map[string]string)
+		}
+
+		if r, dt, err := row.GetColumnValue("bfd_status", result.Columns); err == nil {
+			if dt == "map[string]string" {
+				intf.BfdStatus = r.(map[string]string)
+			}
+		}
+		if intf.BfdStatus == nil {
+			intf.BfdStatus = make(map[string]string)
 		}
 
 		if r, dt, err := row.GetColumnValue("type", result.Columns); err == nil {
